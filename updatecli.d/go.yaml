@@ -1,0 +1,70 @@
+name: go
+
+scms:
+  build-go-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: build-go
+
+actions:
+  pr-build-go-repo:
+    title: 'chore: bump go to latest patch version'
+    kind: stash/pullrequest
+    scmid: build-go-repo
+
+sources:
+  latest_1_23:
+    name: "Retrieve latest Go 1.23.x version"
+    kind: golang
+    spec:
+      versionfilter:
+        kind: semver
+        pattern: "1.23.x"
+
+  latest_1_24:
+    name: "Retrieve latest Go 1.24.x version"
+    kind: golang
+    spec:
+      versionfilter:
+        kind: semver
+        pattern: "1.24.x"
+
+targets:
+  update_templates_json_go_1_23:
+    name: "Update templates.json GO_VERSION for 1.23.x"
+    kind: file
+    scmid: build-go-repo
+    sourceid: latest_1_23
+    spec:
+      file: "templates.json"
+      matchpattern: '"GO_VERSION": "1.23.\d+"'
+      replacepattern: '"GO_VERSION": "{{ source "latest_1_23" }}"'
+
+  update_templates_json_go_1_24:
+    name: "Update templates.json GO_VERSION for 1.24.x"
+    kind: file
+    scmid: build-go-repo
+    sourceid: latest_1_24
+    spec:
+      file: "templates.json"
+      matchpattern: '"GO_VERSION": "1.24.\d+"'
+      replacepattern: '"GO_VERSION": "{{ source "latest_1_24" }}"'
+
+  run-make-build-go-repo:
+    name: Run Make
+    kind: shell
+    scmid: build-go-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update_templates_json_go_1_23:or
+      - update_templates_json_go_1_24:or
+    spec: 
+      command: "make update"

@@ -1,0 +1,64 @@
+# Updatecli for argo-workflows
+#
+# Public Github Repo: https://github.com/argoproj/argo-workflows
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/services/browse
+#
+# The following variable needs to be updated:
+#   - $.values.argoWorkflows.version
+#
+
+
+name: argo-workflows
+
+scms:
+  cdx-services-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.cdx_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: services
+
+actions:
+  pr-cdx-services-repo:
+    title: 'chore: bump argo-workflows to v{{ source "argo-workflows-version" }}'
+    kind: stash/pullrequest
+    scmid: cdx-services-repo
+
+sources:
+  argo-workflows-version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: argoproj
+      repository: argo-workflows
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+        pattern: "3.6.x"
+    transformers:
+      - trimprefix: v
+
+targets:
+  production-version-kustomize:
+    name: Production Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-prod/namespaces/cdx-argo/values.yaml
+      key: "$.values.argoWorkflows.version"
+
+  staging-version-kustomize:
+    name: Staging Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-dev/namespaces/cdx-argo/values.yaml
+      key: "$.values.argoWorkflows.version"

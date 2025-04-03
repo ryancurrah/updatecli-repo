@@ -1,0 +1,69 @@
+# Updatecli for jfrog-cli
+#
+# Public Github Repo: https://github.com/jfrog/jfrog-cli
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/OCI-CDX/repos/build-go/browse
+#
+# The following ARGs need to be updated:
+#   - JFROG_CLI_VERSION
+
+
+name: jfrog-cli
+
+scms:
+  build-go-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: build-go
+
+actions:
+  pr-build-go-repo:
+    title: 'chore: bump jfrog-cli to v{{ source "version" }}'
+    kind: stash/pullrequest
+    scmid: build-go-repo
+
+sources:
+  version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: jfrog
+      repository: jfrog-cli
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+        pattern: "~2"
+    transformers:
+      - trimprefix: v
+
+targets:
+  update-version-build-go:
+    name: Update version
+    sourceid: version
+    kind: dockerfile
+    scmid: build-go-repo
+    spec:
+      file: .templates/Dockerfile
+      instruction:
+        keyword: ENV
+        matcher: JFROG_CLI_VERSION
+
+  run-make-build-go-repo:
+    name: Run Make
+    kind: shell
+    scmid: build-go-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update-version-build-go
+    spec: 
+      command: "make update"

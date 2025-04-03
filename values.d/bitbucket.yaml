@@ -1,0 +1,8 @@
+bitbucket:
+  url: https://bitbucket.acme.com
+  oci_project: "oci-cdx"
+  cdx_project: "cdx"
+  branch: main
+
+oci_repos:
+  project: oci-cdx

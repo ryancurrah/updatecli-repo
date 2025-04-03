@@ -1,0 +1,63 @@
+# Updatecli for sonarqube
+#
+# Public Docker Repo: https://hub.docker.com/_/sonarqube
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/services/browse
+#
+# The following variable needs to be updated:
+#   - $.values.sonarqube.version
+
+
+name: sonarqube
+
+scms:
+  cdx-services-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.cdx_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: services
+
+actions:
+  pr-cdx-services-repo:
+    title: 'chore: bump sonarqube to v{{ source "sonarqube-version" }}'
+    kind: stash/pullrequest
+    scmid: cdx-services-repo
+
+sources:
+  sonarqube-version:
+    name: Get latest version
+    kind: dockerimage
+    spec:
+      image: sonarqube
+      # username: '{{ env "DOCKERHUB_USER" }}'
+      # token: '{{ env "DOCKERHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '^20[0-9]+\.[0-9]+\.[0-9]+-enterprise$'
+        strict: true
+    transformers:
+      - trimsuffix: -enterprise
+
+targets:
+  production-version-kustomize:
+    name: Production SonarQube Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/eng-cdx-prod/namespaces/cdx/values.yaml
+      key: "$.values.sonarqube.version"
+
+  staging-version-kustomize:
+    name: Staging SonarQube Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/eng-cdx-dev/namespaces/cdx/values.yaml
+      key: "$.values.sonarqube.version"

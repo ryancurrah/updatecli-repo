@@ -1,0 +1,6 @@
+policies:
+  - name: Local Updatecli Policies
+    config:
+      - updatecli.d/
+    values:
+      - values.d/bitbucket.yaml

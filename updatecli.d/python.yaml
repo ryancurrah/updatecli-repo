@@ -1,0 +1,132 @@
+name: python
+
+scms:
+  build-python-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: python
+
+actions:
+  pr-build-python-repo:
+    title: 'chore: bump python to latest patch version'
+    kind: stash/pullrequest
+    scmid: build-python-repo
+
+sources:
+  latest_3_9:
+    name: "Retrieve latest Python 3.9.x version"
+    kind: githubrelease
+    spec:
+      owner: python
+      repository: cpython
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '3.9.\d+$'
+    transformers:
+      - trimprefix: v
+
+  latest_3_10:
+    name: "Retrieve latest Python 3.10.x version"
+    kind: githubrelease
+    spec:
+      owner: python
+      repository: cpython
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '3.10.\d+$'
+    transformers:
+      - trimprefix: v
+
+  latest_3_11:
+    name: "Retrieve latest Python 3.11.x version"
+    kind: githubrelease
+    spec:
+      owner: python
+      repository: cpython
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '3.11.\d+$'
+    transformers:
+      - trimprefix: v
+
+  latest_3_12:
+    name: "Retrieve latest Python 3.12.x version"
+    kind: githubrelease
+    spec:
+      owner: python
+      repository: cpython
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '3.12.\d+$'
+    transformers:
+      - trimprefix: v
+
+targets:
+  update_templates_json_python_3_9:
+    name: "Update templates.json PYTHON_VERSION for 3.9.x"
+    kind: file
+    scmid: build-python-repo
+    sourceid: latest_3_9
+    spec:
+      file: "templates.json"
+      matchpattern: '"PYTHON_VERSION": "3.9.\d+"'
+      replacepattern: '"PYTHON_VERSION": "{{ source "latest_3_9" }}"'
+
+  update_templates_json_python_3_10:
+    name: "Update templates.json PYTHON_VERSION for 3.10.x"
+    kind: file
+    scmid: build-python-repo
+    sourceid: latest_3_10
+    spec:
+      file: "templates.json"
+      matchpattern: '"PYTHON_VERSION": "3.10.\d+"'
+      replacepattern: '"PYTHON_VERSION": "{{ source "latest_3_10" }}"'
+
+  update_templates_json_python_3_11:
+    name: "Update templates.json PYTHON_VERSION for 3.11.x"
+    kind: file
+    scmid: build-python-repo
+    sourceid: latest_3_11
+    spec:
+      file: "templates.json"
+      matchpattern: '"PYTHON_VERSION": "3.11.\d+"'
+      replacepattern: '"PYTHON_VERSION": "{{ source "latest_3_11" }}"'
+
+  update_templates_json_python_3_12:
+    name: "Update templates.json PYTHON_VERSION for 3.12.x"
+    kind: file
+    scmid: build-python-repo
+    sourceid: latest_3_12
+    spec:
+      file: "templates.json"
+      matchpattern: '"PYTHON_VERSION": "3.12.\d+"'
+      replacepattern: '"PYTHON_VERSION": "{{ source "latest_3_12" }}"'
+
+  run-make-build-python-repo:
+    name: Run Make
+    kind: shell
+    scmid: build-python-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update_templates_json_python_3_9:or
+      - update_templates_json_python_3_10:or
+      - update_templates_json_python_3_11:or
+      - update_templates_json_python_3_12:or
+    spec: 
+      command: "make update"

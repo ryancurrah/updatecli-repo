@@ -1,0 +1,71 @@
+# Updatecli for goreleaser
+#
+# Public Github Repo: https://github.com/goreleaser/goreleaser
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/OCI-CDX/repos/build-go/browse
+#
+# The following ARGs need to be updated:
+#   - GORELEASER_VERSION
+
+
+name: goreleaser
+
+scms:
+  build-go-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: build-go
+
+actions:
+  pr-build-go-repo:
+    title: 'chore: bump goreleaser to v{{ source "goreleaser-version" }}'
+    kind: stash/pullrequest
+    scmid: build-go-repo
+
+sources:
+  goreleaser-version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: goreleaser
+      repository: goreleaser
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+    transformers:
+      - trimprefix: v
+
+targets:
+  update-version-build-go:
+    name: Update GO Repo
+    sourceid: goreleaser-version
+    kind: dockerfile
+    scmid: build-go-repo
+    spec:
+      file: .templates/Dockerfile
+      instruction:
+        keyword: ENV
+        matcher: GORELEASER_VERSION
+    transformers:
+    - addprefix: '"'
+    - addsuffix: '"'
+
+  run-make-build-go-repo:
+    name: Run Make
+    kind: shell
+    scmid: build-go-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update-version-build-go
+    spec: 
+      command: "make update"

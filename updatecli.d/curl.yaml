@@ -1,0 +1,68 @@
+# Updatecli for curl
+#
+# Public Github Repo: https://github.com/stunnel/static-curl
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/OCI-CDX/repos/ubuntu/browse
+#
+# The following ARGs need to be updated:
+#   - CURL_VERSION
+
+
+name: curl
+
+scms:
+  ubuntu-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: ubuntu
+
+actions:
+  pr-ubuntu-repo:
+    title: 'chore: bump curl to v{{ source "version" }}'
+    kind: stash/pullrequest
+    scmid: ubuntu-repo
+
+sources:
+  version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: stunnel
+      repository: static-curl
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+    transformers:
+      - trimprefix: v
+
+targets:
+  update-version-ubuntu:
+    name: Update version
+    sourceid: version
+    kind: dockerfile
+    scmid: ubuntu-repo
+    spec:
+      file: .templates/Dockerfile
+      instruction:
+        keyword: ENV
+        matcher: CURL_VERSION
+
+  run-make-ubuntu-repo:
+    name: Run Make
+    kind: shell
+    scmid: ubuntu-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update-version-ubuntu
+    spec: 
+      command: "make update"

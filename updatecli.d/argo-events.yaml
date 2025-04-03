@@ -1,0 +1,63 @@
+# Updatecli for argo-events
+#
+# Public Github Repo: https://github.com/argoproj/argo-events
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/services/browse
+#
+# The following variable needs to be updated:
+#   - $.values.argoEvents.version
+#
+
+
+name: argo-events
+
+scms:
+  cdx-services-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.cdx_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: services
+
+actions:
+  pr-cdx-services-repo:
+    title: 'chore: bump argo-events to v{{ source "argo-events-version" }}'
+    kind: stash/pullrequest
+    scmid: cdx-services-repo
+
+sources:
+  argo-events-version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: argoproj
+      repository: argo-events
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+    transformers:
+      - trimprefix: v
+
+targets:
+  production-version-kustomize:
+    name: Production Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-prod/namespaces/cdx-argo/values.yaml
+      key: "$.values.argoEvents.version"
+
+  staging-version-kustomize:
+    name: Staging Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-dev/namespaces/cdx-argo/values.yaml
+      key: "$.values.argoEvents.version"

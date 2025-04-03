@@ -1,0 +1,62 @@
+# Updatecli for sourcegraph
+#
+# Public Github Repo: https://github.com/sourcegraph/deploy-sourcegraph-k8s
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/services/browse
+#
+# The following variable needs to be updated:
+#   - $.values.sourcegraph.version
+
+
+name: sourcegraph
+
+scms:
+  cdx-services-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.cdx_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: services
+
+actions:
+  pr-cdx-services-repo:
+    title: 'chore: bump sourcegraph to v{{ source "sourcegraph-version" }}'
+    kind: stash/pullrequest
+    scmid: cdx-services-repo
+
+sources:
+  sourcegraph-version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: sourcegraph
+      repository: deploy-sourcegraph-k8s
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: latest
+    transformers:
+      - trimprefix: v
+
+targets:
+  production-version-kustomize:
+    name: Production Sourcegraph Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/eng-cdx-prod/namespaces/sourcegraph/values.yaml
+      key: "$.values.sourcegraph.version"
+
+  staging-version-kustomize:
+    name: Staging Sourcegraph Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/eng-cdx-dev/namespaces/sourcegraph/values.yaml
+      key: "$.values.sourcegraph.version"

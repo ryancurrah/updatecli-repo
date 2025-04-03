@@ -1,0 +1,65 @@
+# Updatecli for dex
+#
+# Public Github Repo: https://github.com/dexidp/dex
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/services/browse
+#
+# The following variable needs to be updated:
+#   - $.values.dex.version
+#
+
+
+name: dex
+
+scms:
+  cdx-services-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.cdx_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: services
+
+actions:
+  pr-cdx-services-repo:
+    title: 'chore: bump dex to v{{ source "dex-version" }}'
+    kind: stash/pullrequest
+    scmid: cdx-services-repo
+
+sources:
+  dex-version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: dexidp
+      repository: dex
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: regex
+        pattern: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+        strict: true
+    transformers:
+      - trimprefix: v
+
+targets:
+  production-version-kustomize:
+    name: Production Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-prod/namespaces/cdx-argo/values.yaml
+      key: "$.values.dex.version"
+
+  staging-version-kustomize:
+    name: Staging Version Kustomize
+    kind: yaml
+    scmid: cdx-services-repo
+    spec:
+      file: clusters/argo-dev/namespaces/cdx-argo/values.yaml
+      key: "$.values.dex.version"

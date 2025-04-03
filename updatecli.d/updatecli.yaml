@@ -1,0 +1,68 @@
+# Updatecli for updatecli
+#
+# Public Github Repo: https://github.com/updatecli/updatecli
+#
+# Repos to update:
+#   - https://bitbucket.acme.com/projects/CDX/repos/updatecli/browse
+#
+# The following ARGs need to be updated:
+#   - UPDATECLI_VERSION
+
+
+name: updatecli
+
+scms:
+  updatecli-repo:
+    kind: stash
+    spec:
+      url: '{{ .bitbucket.url }}'
+      owner: '{{ .bitbucket.oci_project }}' 
+      branch: '{{ .bitbucket.branch }}'
+      username: '{{ requiredEnv "BITBUCKET_USER" }}'
+      token: '{{ requiredEnv "BITBUCKET_TOKEN" }}'
+      email: '{{ requiredEnv "BITBUCKET_EMAIL" }}'
+      user: '{{ requiredEnv "BITBUCKET_NAME" }}'
+      repository: updatecli
+
+actions:
+  pr-updatecli-repo:
+    title: 'chore: bump updatecli to v{{ source "version" }}'
+    kind: stash/pullrequest
+    scmid: updatecli-repo
+
+sources:
+  version:
+    name: Get latest version
+    kind: githubrelease
+    spec:
+      owner: updatecli
+      repository: updatecli
+      username: '{{ env "GITHUB_USER" }}'
+      token: '{{ env "GITHUB_TOKEN" }}'
+      versionfilter:
+        kind: semver
+    transformers:
+      - trimprefix: v
+
+targets:
+  update-version-updatecli:
+    name: Update version
+    sourceid: version
+    kind: dockerfile
+    scmid: updatecli-repo
+    spec:
+      file: .templates/Dockerfile
+      instruction:
+        keyword: ENV
+        matcher: UPDATECLI_VERSION
+
+  run-make-updatecli-repo:
+    name: Run Make
+    kind: shell
+    scmid: updatecli-repo
+    dependsonchange: true
+    disablesourceinput: true
+    dependson:
+      - update-version-updatecli
+    spec: 
+      command: "make update"
